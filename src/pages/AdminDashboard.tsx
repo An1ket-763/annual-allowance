@@ -8,18 +8,48 @@ export default function AdminDashboard() {
     const [editing, setEditing] = useState<string | null>(null);
     const [tempUsedValue, setTempUsedValue] = useState<number | null>(null);
     const [toast, setToast] = useState<string | null>(null);
+    const [showAddEmployee, setShowAddEmployee] = useState(false);
+    const [empEmail, setEmpEmail] = useState("");
+    const [empPassword, setEmpPassword] = useState("");
+
 
     // NEW: collapsed state (hidden by default)
     const [showEmployees, setShowEmployees] = useState(false);
     const [showRequests, setShowRequests] = useState(false);
 
     useEffect(() => {
-        const empData = JSON.parse(localStorage.getItem("employees") || "{}");
-        setEmployees(empData);
+        const fetchEmployees = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
 
+            const res = await fetch("http://localhost:5000/api/admin/employees", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const data = await res.json();
+
+            const formatted: any = {};
+            data.forEach((emp: any) => {
+                formatted[emp.email] = {
+                    total: emp.total_leaves,
+                    used: emp.used_leaves,
+                    remaining: emp.remaining_leaves
+                };
+            });
+
+            setEmployees(formatted);
+        };
+
+        fetchEmployees();
+
+        // KEEP leaveRequests for now (demo data)
         const reqs = JSON.parse(localStorage.getItem("leaveRequests") || "[]");
         setRequests(reqs);
+
     }, []);
+
 
     const showToast = (msg: string) => {
         setToast(msg);
@@ -75,6 +105,36 @@ export default function AdminDashboard() {
         setRequests(filtered);
 
         showToast(`Removed ${email}`);
+    };
+
+    const handleAddEmployee = async () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) return alert("Not authenticated");
+
+        const res = await fetch("http://localhost:5000/api/admin/employees", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                email: empEmail,
+                password: empPassword
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.message || "Failed to add employee");
+            return;
+        }
+
+        alert("Employee created successfully");
+        setEmpEmail("");
+        setEmpPassword("");
+        setShowAddEmployee(false);
     };
 
     // ------------------ INLINE EDITING ------------------
@@ -148,6 +208,42 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
+            {showAddEmployee && (
+                <div className="mb-6 p-4 border rounded-lg bg-slate-50">
+                    <div className="flex gap-4">
+                        <input
+                            type="email"
+                            placeholder="Employee Email"
+                            value={empEmail}
+                            onChange={(e) => setEmpEmail(e.target.value)}
+                            className="border px-3 py-2 rounded w-full"
+                        />
+
+                        <input
+                            type="password"
+                            placeholder="Temporary Password"
+                            value={empPassword}
+                            onChange={(e) => setEmpPassword(e.target.value)}
+                            className="border px-3 py-2 rounded w-full"
+                        />
+
+                        <button
+                            onClick={handleAddEmployee}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded"
+                        >
+                            Create
+                        </button>
+
+                        <button
+                            onClick={() => setShowAddEmployee(false)}
+                            className="px-4 py-2 border rounded"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <main className="max-w-6xl mx-auto p-6">
                 {/* Stat cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -161,6 +257,13 @@ export default function AdminDashboard() {
                 <div className="bg-white rounded-2xl shadow p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-lg font-semibold">Employee Leave Records</h2>
+                        <button
+                            onClick={() => setShowAddEmployee(true)}
+                            className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm"
+                        >
+                            + Add Employee
+                        </button>
+
                         <div className="flex items-center gap-3">
                             <div className="text-sm text-slate-400">{totalEmployees} employees</div>
 

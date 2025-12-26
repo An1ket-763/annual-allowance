@@ -11,7 +11,7 @@ exports.login = async (req, res) => {
         }
 
         const [rows] = await db.query(
-            `SELECT users.id, users.email, users.password_hash, roles.name AS role
+            `SELECT users.id, users.email, users.password_hash, users.department, roles.name AS role
              FROM users
              JOIN roles ON users.role_id = roles.id
              WHERE users.email = ?`,
@@ -30,17 +30,23 @@ exports.login = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { userId: user.id, role: user.role },
-            "SECRET_KEY",
+            {
+                id: user.id,
+                role: user.role,
+                department: user.department
+            },
+            process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
 
         res.json({
             token,
-            role: user.role
+            role: user.role,
+            department: user.department
         });
 
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+    console.log(req.user);
 };
