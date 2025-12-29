@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import LeaveForm from "./components/LeaveForm";
+import ChangePassword from "./pages/ChangePassword";
 
 const getRole = (): string | null => {
   try {
@@ -71,6 +72,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route path="/change-password" element={<ChangePassword />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

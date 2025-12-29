@@ -34,6 +34,13 @@ export default function Login() {
             // Save auth data
             localStorage.setItem("token", data.token);
             localStorage.setItem("role", data.role);
+
+            // 🔐 Force password change on first login
+            if (data.mustChangePassword) {
+                navigate("/change-password");
+                return;
+            }
+
             // Redirect based on role
             if (data.role.includes("ADMIN")) {
                 navigate("/admin");

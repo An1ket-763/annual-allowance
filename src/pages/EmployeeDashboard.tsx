@@ -22,6 +22,20 @@ export default function EmployeeDashboard() {
     const [email, setEmail] = useState("");
 
     useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            navigate("/");
+            return;
+        }
+
+        const payload = JSON.parse(atob(token.split(".")[1]));
+
+        if (payload.mustChangePassword) {
+            navigate("/change-password");
+        }
+    }, [navigate]);
+
+    useEffect(() => {
         const user = getUserFromToken();
         if (user?.email) {
             setEmail(user.email);

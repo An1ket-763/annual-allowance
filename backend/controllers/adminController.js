@@ -3,51 +3,63 @@ const bcrypt = require("bcryptjs");
 
 // -------------------- CREATE EMPLOYEE --------------------
 exports.createEmployee = async (req, res) => {
+    const { email, password } = req.body;
+    const admin = req.user;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: "Email and password required" });
+    }
+
+    const conn = await db.getConnection();
+
     try {
-        const { email, password } = req.body;
-        const admin = req.user; // from JWT
-
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email and password required" });
-        }
-
         // Check if user already exists
-        const [existing] = await db.query(
+        const [existing] = await conn.query(
             "SELECT id FROM users WHERE email = ?",
             [email]
         );
 
         if (existing.length > 0) {
+            conn.release();
             return res.status(409).json({ message: "User already exists" });
         }
 
         // Get EMPLOYEE role id
-        const [[roleRow]] = await db.query(
+        const [[roleRow]] = await conn.query(
             "SELECT id FROM roles WHERE name = 'EMPLOYEE'"
         );
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        await conn.beginTransaction();
+
         // Insert into users
-        const [userResult] = await db.query(
-            `INSERT INTO users (email, password_hash, role_id, department)
-             VALUES (?, ?, ?, ?)`,
+        const [userResult] = await conn.query(
+            `INSERT INTO users 
+             (email, password_hash, role_id, department, must_change_password)
+             VALUES (?, ?, ?, ?, true)`,
             [email, hashedPassword, roleRow.id, admin.department]
         );
 
         const userId = userResult.insertId;
 
         // Insert into employees
-        await db.query(
-            `INSERT INTO employees (user_id, department, created_by_admin_id)
-             VALUES (?, ?, ?)`,
+        await conn.query(
+            `INSERT INTO employees
+             (user_id, department, total_leaves, used_leaves, remaining_leaves, created_by_admin_id)
+             VALUES (?, ?, 30, 0, 30, ?)`,
             [userId, admin.department, admin.id]
         );
+
+        await conn.commit();
 
         res.status(201).json({ message: "Employee created successfully" });
 
     } catch (err) {
+        await conn.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        conn.release();
     }
 };
 

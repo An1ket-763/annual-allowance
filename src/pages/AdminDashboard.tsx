@@ -12,6 +12,20 @@ export default function AdminDashboard() {
     const [showEmployees, setShowEmployees] = useState(false);
     const [showRequests, setShowRequests] = useState(false);
 
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            navigate("/");
+            return;
+        }
+
+        const payload = JSON.parse(atob(token.split(".")[1]));
+
+        if (payload.mustChangePassword) {
+            navigate("/change-password");
+        }
+    }, [navigate]);
+
     const fetchLeaveRequests = async () => {
         const token = localStorage.getItem("token");
         if (!token) return;
