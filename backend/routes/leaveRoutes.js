@@ -6,11 +6,14 @@ const adminOnly = require("../middleware/adminMiddleware");
 const {
     createLeaveRequest,
     getAdminLeaveRequests,
-    decideLeaveRequest
+    decideLeaveRequest,
+    getMyLeaveRequests
 } = require("../controllers/leaveController");
+
 
 // Employee
 router.post("/", authMiddleware, createLeaveRequest);
+router.get("/", authMiddleware, getMyLeaveRequests);
 
 // Admin
 router.get("/admin", authMiddleware, adminOnly, getAdminLeaveRequests);

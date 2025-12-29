@@ -5,8 +5,6 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
     const [employees, setEmployees] = useState<Record<string, any>>({});
     const [requests, setRequests] = useState<any[]>([]);
-    const [editing, setEditing] = useState<string | null>(null);
-    const [tempUsedValue, setTempUsedValue] = useState<number | null>(null);
     const [toast, setToast] = useState<string | null>(null);
     const [showAddEmployee, setShowAddEmployee] = useState(false);
     const [empEmail, setEmpEmail] = useState("");
@@ -34,36 +32,40 @@ export default function AdminDashboard() {
         setRequests(data);
     };
 
+    const fetchEmployees = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch("http://localhost:5000/api/admin/employees", {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.message || "Failed to load employees");
+            return;
+        }
+
+        const formatted: any = {};
+        data.forEach((emp: any) => {
+            formatted[emp.email] = {
+                total: emp.total_leaves,
+                used: emp.used_leaves,
+                remaining: emp.remaining_leaves,
+                userId: emp.user_id, // IMPORTANT for delete
+            };
+        });
+
+        setEmployees(formatted);
+    };
+
     useEffect(() => {
-        const fetchEmployees = async () => {
-            const token = localStorage.getItem("token");
-            if (!token) return;
-
-            const res = await fetch("http://localhost:5000/api/admin/employees", {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            const data = await res.json();
-
-            const formatted: any = {};
-            data.forEach((emp: any) => {
-                formatted[emp.email] = {
-                    total: emp.total_leaves,
-                    used: emp.used_leaves,
-                    remaining: emp.remaining_leaves
-                };
-            });
-
-            setEmployees(formatted);
-        };
-
         fetchEmployees();
         fetchLeaveRequests();
-
     }, []);
-
 
     const showToast = (msg: string) => {
         setToast(msg);
@@ -101,18 +103,32 @@ export default function AdminDashboard() {
         fetchLeaveRequests();
     };
 
-    // ------------------ REMOVE EMPLOYEE ------------------
-    const removeEmployee = (email: string) => {
-        const ok = window.confirm(`Remove employee ${email}?`);
+    const removeEmployee = async (userId: number) => {
+        const ok = window.confirm("Remove employee?");
         if (!ok) return;
 
-        const updated = { ...employees };
-        delete updated[email];
-        localStorage.setItem("employees", JSON.stringify(updated));
-        setEmployees(updated);
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
-        showToast(`Removed ${email}`);
+        const res = await fetch(
+            `http://localhost:5000/api/admin/employees/${userId}`,
+            {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        if (!res.ok) {
+            alert("Failed to remove employee");
+            return;
+        }
+
+        showToast("Employee removed");
+        fetchEmployees(); // ✅ NOW WORKS
     };
+
 
     const handleAddEmployee = async () => {
         const token = localStorage.getItem("token");
@@ -144,35 +160,8 @@ export default function AdminDashboard() {
         setShowAddEmployee(false);
     };
 
-    // ------------------ INLINE EDITING ------------------
-    const startEditing = (email: string, currentUsed: number) => {
-        setEditing(email);
-        setTempUsedValue(currentUsed);
-    };
-
-    const cancelEditing = () => {
-        setEditing(null);
-        setTempUsedValue(null);
-    };
-
-    const saveEditing = (email: string) => {
-        if (tempUsedValue === null) return;
-
-        const updated = { ...employees };
-        updated[email].used = tempUsedValue;
-        updated[email].remaining = Math.max(updated[email].total - updated[email].used, 0);
-
-        localStorage.setItem("employees", JSON.stringify(updated));
-        setEmployees(updated);
-
-        setEditing(null);
-        setTempUsedValue(null);
-
-        showToast(`Updated ${email}`);
-    };
-
     const logout = () => {
-        localStorage.removeItem("demoToken");
+        localStorage.removeItem("token");
         localStorage.removeItem("role");
         navigate("/");
     };
@@ -320,29 +309,16 @@ export default function AdminDashboard() {
                                         <tr key={email} className="border-t">
                                             <td className="py-3">{email}</td>
                                             <td className="py-3">{data.total}</td>
-                                            <td className="py-3">
-                                                <input
-                                                    type="number"
-                                                    disabled={editing !== email}
-                                                    value={editing === email ? tempUsedValue ?? data.used : data.used}
-                                                    onChange={(e) => setTempUsedValue(+e.target.value)}
-                                                    className={`px-2 py-1 rounded w-20 text-center border ${editing === email ? "border-slate-300 bg-white" : "bg-slate-50 border-transparent"}`}
-                                                />
-                                            </td>
+                                            <td className="py-3">{data.used}</td>
                                             <td className="py-3">{data.remaining}</td>
                                             <td className="py-3">
                                                 <div className="flex gap-2">
-                                                    {editing === email ? (
-                                                        <>
-                                                            <button onClick={() => saveEditing(email)} className="px-3 py-1 rounded-md bg-emerald-600 text-white text-sm">Save</button>
-                                                            <button onClick={cancelEditing} className="px-3 py-1 rounded-md border text-sm">Cancel</button>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <button onClick={() => startEditing(email, data.used)} className="px-3 py-1 rounded-md border text-sm">Edit</button>
-                                                            <button onClick={() => removeEmployee(email)} className="px-3 py-1 rounded-md bg-red-500 text-white text-sm">Remove</button>
-                                                        </>
-                                                    )}
+                                                    <button
+                                                        onClick={() => removeEmployee(data.userId)}
+                                                        className="px-3 py-1 rounded-md bg-red-500 text-white text-sm"
+                                                    >
+                                                        Remove
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>

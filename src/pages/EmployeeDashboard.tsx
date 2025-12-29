@@ -1,36 +1,81 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const getUserFromToken = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+
+    try {
+        return JSON.parse(atob(token.split(".")[1]));
+    } catch {
+        return null;
+    }
+};
+
+
 export default function EmployeeDashboard() {
     const navigate = useNavigate();
     const [toast, setToast] = useState<string | null>(null);
 
-    const email = localStorage.getItem("employeeEmail") || "you@example.com";
-
     const [leaveData, setLeaveData] = useState({ total: 30, used: 0, remaining: 30 });
     const [requests, setRequests] = useState<any[]>([]);
+    const [email, setEmail] = useState("");
 
-    // Load either company employee record (if approved/exists) or personal record
     useEffect(() => {
-        const company = JSON.parse(localStorage.getItem("employees") || "{}");
-        if (company[email]) {
-            setLeaveData(company[email]);
-        } else {
-            const personal = JSON.parse(localStorage.getItem(`personalLeave_${email}`) || "{}");
-            if (personal && Object.keys(personal).length) {
-                setLeaveData(personal);
-            } else {
-                setLeaveData({ total: 30, used: 0, remaining: 30 });
-            }
+        const user = getUserFromToken();
+        if (user?.email) {
+            setEmail(user.email);
         }
-    }, [email]);
+    }, []);
 
-    // Load this employee’s requests
+    const fetchLeaveBalance = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch("http://localhost:5000/api/employees/me", {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.message || "Failed to load leave balance");
+            return;
+        }
+
+        setLeaveData({
+            total: data.total_leaves,
+            used: data.used_leaves,
+            remaining: data.remaining_leaves,
+        });
+    };
+
+    const fetchMyLeaveRequests = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch("http://localhost:5000/api/leaves", {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.message || "Failed to load leave history");
+            return;
+        }
+
+        setRequests(data);
+    };
+
     useEffect(() => {
-        const allReqs = JSON.parse(localStorage.getItem("leaveRequests") || "[]");
-        const myReqs = allReqs.filter((r: any) => r.email === email);
-        setRequests(myReqs);
-    }, [toast, email]);
+        fetchLeaveBalance();
+        fetchMyLeaveRequests();
+    }, []);
 
     // Toast flag handling (from form submission)
     useEffect(() => {
@@ -45,7 +90,7 @@ export default function EmployeeDashboard() {
     }, []);
 
     const logout = () => {
-        localStorage.removeItem("demoToken");
+        localStorage.removeItem("token");
         localStorage.removeItem("role");
         navigate("/");
     };
@@ -181,10 +226,10 @@ export default function EmployeeDashboard() {
                                 <tbody>
                                     {requests.map((r) => (
                                         <tr key={r.id} className="border-t">
-                                            <td className="p-3">{r.from}</td>
-                                            <td className="p-3">{r.to}</td>
+                                            <td className="p-3">{r.start_date}</td>
+                                            <td className="p-3">{r.end_date}</td>
                                             <td className="p-3">{r.days}</td>
-                                            <td className={`p-3 font-medium ${r.status === 'approved' ? 'text-emerald-600' : r.status === 'declined' ? 'text-red-500' : 'text-yellow-600'}`}>
+                                            <td className={`p-3 font-medium ${r.status === 'APPROVED' ? 'text-emerald-600' : r.status === 'DECLINED' ? 'text-red-500' : 'text-yellow-600'}`}>
                                                 {r.status}
                                             </td>
                                         </tr>

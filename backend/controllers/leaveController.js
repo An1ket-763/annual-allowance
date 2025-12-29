@@ -98,3 +98,28 @@ exports.decideLeaveRequest = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+// ---------------- EMPLOYEE: VIEW MY LEAVES ----------------
+exports.getMyLeaveRequests = async (req, res) => {
+    try {
+        const user = req.user;
+
+        const [rows] = await db.query(
+            `SELECT 
+                id,
+                start_date,
+                end_date,
+                days,
+                status
+             FROM leave_requests
+             WHERE employee_user_id = ?
+             ORDER BY created_at DESC`,
+            [user.id]
+        );
+
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+

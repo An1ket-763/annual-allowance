@@ -58,6 +58,7 @@ exports.getEmployees = async (req, res) => {
 
         const [rows] = await db.query(
             `SELECT 
+                u.id AS user_id,
                 u.email,
                 e.total_leaves,
                 e.used_leaves,
@@ -69,6 +70,31 @@ exports.getEmployees = async (req, res) => {
         );
 
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+
+exports.deleteEmployee = async (req, res) => {
+    try {
+        const admin = req.user;
+        const { userId } = req.params;
+
+        // Ensure same department
+        const [[emp]] = await db.query(
+            `SELECT department FROM employees WHERE user_id = ?`,
+            [userId]
+        );
+
+        if (!emp || emp.department !== admin.department) {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        // Delete user (cascades to employees & leaves)
+        await db.query(`DELETE FROM users WHERE id = ?`, [userId]);
+
+        res.json({ message: "Employee removed" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
