@@ -11,11 +11,28 @@ export default function AdminDashboard() {
     const [showAddEmployee, setShowAddEmployee] = useState(false);
     const [empEmail, setEmpEmail] = useState("");
     const [empPassword, setEmpPassword] = useState("");
-
-
-    // NEW: collapsed state (hidden by default)
     const [showEmployees, setShowEmployees] = useState(false);
     const [showRequests, setShowRequests] = useState(false);
+
+    const fetchLeaveRequests = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch("http://localhost:5000/api/leaves/admin", {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.message || "Failed to load leave requests");
+            return;
+        }
+
+        setRequests(data);
+    };
 
     useEffect(() => {
         const fetchEmployees = async () => {
@@ -43,10 +60,7 @@ export default function AdminDashboard() {
         };
 
         fetchEmployees();
-
-        // KEEP leaveRequests for now (demo data)
-        const reqs = JSON.parse(localStorage.getItem("leaveRequests") || "[]");
-        setRequests(reqs);
+        fetchLeaveRequests();
 
     }, []);
 
@@ -57,36 +71,34 @@ export default function AdminDashboard() {
     };
 
     // ------------------ APPROVE / DECLINE ------------------
-    const updateRequestStatus = (id: string, status: "approved" | "declined") => {
-        const allReqs = JSON.parse(localStorage.getItem("leaveRequests") || "[]");
-        const idx = allReqs.findIndex((r: any) => r.id === id);
-        if (idx === -1) return;
+    const updateRequestStatus = async (
+        id: number,
+        status: "APPROVED" | "DECLINED"
+    ) => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
-        const req = allReqs[idx];
-        if (req.status !== "pending") return; // no double approve
-
-        req.status = status;
-        req.decisionAt = new Date().toISOString();
-        allReqs[idx] = req;
-
-        if (status === "approved") {
-            const empEmail = req.email;
-            const empData = JSON.parse(localStorage.getItem("employees") || "{}");
-
-            if (!empData[empEmail]) {
-                empData[empEmail] = { total: 30, used: 0, remaining: 30 };
+        const res = await fetch(
+            `http://localhost:5000/api/leaves/admin/${id}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ status }),
             }
+        );
 
-            empData[empEmail].used += req.days;
-            empData[empEmail].remaining = Math.max(empData[empEmail].total - empData[empEmail].used, 0);
+        const data = await res.json();
 
-            localStorage.setItem("employees", JSON.stringify(empData));
-            setEmployees(empData);
+        if (!res.ok) {
+            alert(data.message || "Action failed");
+            return;
         }
 
-        localStorage.setItem("leaveRequests", JSON.stringify(allReqs));
-        setRequests(allReqs);
-        showToast(`Request ${status}`);
+        showToast(`Leave ${status.toLowerCase()}`);
+        fetchLeaveRequests();
     };
 
     // ------------------ REMOVE EMPLOYEE ------------------
@@ -98,11 +110,6 @@ export default function AdminDashboard() {
         delete updated[email];
         localStorage.setItem("employees", JSON.stringify(updated));
         setEmployees(updated);
-
-        const allReqs = JSON.parse(localStorage.getItem("leaveRequests") || "[]");
-        const filtered = allReqs.filter((r: any) => r.email !== email);
-        localStorage.setItem("leaveRequests", JSON.stringify(filtered));
-        setRequests(filtered);
 
         showToast(`Removed ${email}`);
     };
@@ -172,9 +179,9 @@ export default function AdminDashboard() {
 
     // ------------------ UI helpers ------------------
     const totalEmployees = Object.keys(employees).length;
-    const pendingCount = requests.filter((r) => r.status === "pending").length;
-    const approvedCount = requests.filter((r) => r.status === "approved").length;
-    const declinedCount = requests.filter((r) => r.status === "declined").length;
+    const pendingCount = requests.filter((r) => r.status === "PENDING").length;
+    const approvedCount = requests.filter((r) => r.status === "APPROVED").length;
+    const declinedCount = requests.filter((r) => r.status === "DECLINED").length;
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-700">
@@ -395,13 +402,15 @@ export default function AdminDashboard() {
 
                                         {requests.map((req) => (
                                             <tr key={req.id} className="border-t">
-                                                <td className="py-3">{req.name}</td>
-                                                <td className="py-3">{req.from} → {req.to}</td>
+                                                <td className="py-3">{req.email}</td>
+                                                <td className="py-3">
+                                                    {req.start_date} → {req.end_date}
+                                                </td>
                                                 <td className="py-3">{req.days}</td>
                                                 <td className="py-3 font-semibold">{
-                                                    req.status === "approved" ? (
+                                                    req.status === "APPROVED" ? (
                                                         <span className="text-emerald-600">Approved</span>
-                                                    ) : req.status === "declined" ? (
+                                                    ) : req.status === "DECLINED" ? (
                                                         <span className="text-rose-500">Declined</span>
                                                     ) : (
                                                         <span className="text-yellow-600">Pending</span>
@@ -409,10 +418,10 @@ export default function AdminDashboard() {
                                                 }</td>
                                                 <td className="py-3">
                                                     <div className="flex gap-2">
-                                                        {req.status === "pending" && (
+                                                        {req.status === "PENDING" && (
                                                             <>
-                                                                <button onClick={() => updateRequestStatus(req.id, "approved")} className="px-3 py-1 rounded-md bg-emerald-600 text-white text-sm">Approve</button>
-                                                                <button onClick={() => updateRequestStatus(req.id, "declined")} className="px-3 py-1 rounded-md bg-rose-500 text-white text-sm">Decline</button>
+                                                                <button onClick={() => updateRequestStatus(req.id, "APPROVED")} className="px-3 py-1 rounded-md bg-emerald-600 text-white text-sm">Approve</button>
+                                                                <button onClick={() => updateRequestStatus(req.id, "DECLINED")} className="px-3 py-1 rounded-md bg-rose-500 text-white text-sm">Decline</button>
                                                             </>
                                                         )}
                                                     </div>

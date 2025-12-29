@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 
 export default function LeaveForm() {
     const navigate = useNavigate();
-    const defaultEmail = localStorage.getItem("employeeEmail") || "";
+
     const [formData, setFormData] = useState({
-        name: "",
-        email: defaultEmail,
-        from: "",
-        to: "",
+        startDate: "",
+        endDate: "",
     });
+
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,45 +24,53 @@ export default function LeaveForm() {
         return days > 0 ? days : 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const days = calcDaysInclusive(formData.from, formData.to);
+        const days = calcDaysInclusive(formData.startDate, formData.endDate);
         if (days <= 0) {
             alert("Please select a valid date range.");
             return;
         }
 
-        // Build request object
-        const req = {
-            id: `req_${Date.now()}`,
-            name: formData.name || "Anonymous",
-            email: formData.email || defaultEmail || "unknown@demo.com",
-            from: formData.from,
-            to: formData.to,
-            days,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-        };
+        const token = localStorage.getItem("token");
+        if (!token) {
+            alert("Not authenticated");
+            return;
+        }
 
-        // push to leaveRequests (global)
-        const allReqs = JSON.parse(localStorage.getItem("leaveRequests") || "[]");
-        allReqs.unshift(req);
-        localStorage.setItem("leaveRequests", JSON.stringify(allReqs));
+        setLoading(true);
 
-        // Update personal leave data (local per employee) so they can see used/remaining locally
-        const personalKey = `personalLeave_${req.email}`;
-        const personal = JSON.parse(localStorage.getItem(personalKey) || "{}");
-        const base = {
-            total: personal.total ?? 30,
-            used: (personal.used ?? 0) + days,
-            remaining: Math.max((personal.total ?? 30) - ((personal.used ?? 0) + days), 0),
-        };
-        localStorage.setItem(personalKey, JSON.stringify(base));
+        try {
+            const res = await fetch("http://localhost:5000/api/leaves", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    startDate: formData.startDate,
+                    endDate: formData.endDate,
+                    days,
+                }),
+            });
 
-        // notify employee and redirect
-        localStorage.setItem("toast", "✅ Your leave request has been submitted!");
-        navigate("/employee");
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.message || "Failed to submit leave request");
+                setLoading(false);
+                return;
+            }
+
+            alert("✅ Leave request submitted");
+            navigate("/employee");
+
+        } catch (err) {
+            alert("Server not reachable");
+        }
+
+        setLoading(false);
     };
 
     return (
@@ -71,49 +79,26 @@ export default function LeaveForm() {
                 <h2 className="text-2xl font-bold mb-6 text-center">Leave Request Form</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Name</label>
-                        <input
-                            type="text"
-                            name="name"
-                            required
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Email</label>
-                        <input
-                            type="email"
-                            name="email"
-                            required
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                    </div>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium mb-1">From</label>
                             <input
                                 type="date"
-                                name="from"
+                                name="startDate"
                                 required
-                                value={formData.from}
+                                value={formData.startDate}
                                 onChange={handleChange}
                                 className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                             />
                         </div>
+
                         <div>
                             <label className="block text-sm font-medium mb-1">To</label>
                             <input
                                 type="date"
-                                name="to"
+                                name="endDate"
                                 required
-                                value={formData.to}
+                                value={formData.endDate}
                                 onChange={handleChange}
                                 className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                             />
@@ -122,9 +107,10 @@ export default function LeaveForm() {
 
                     <button
                         type="submit"
-                        className="w-full py-2 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 mt-4"
+                        disabled={loading}
+                        className="w-full py-2 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-70 mt-4"
                     >
-                        Submit Request
+                        {loading ? "Submitting..." : "Submit Request"}
                     </button>
                 </form>
             </div>

@@ -6,6 +6,7 @@ const testRoutes = require("./routes/testRoutes");
 const dbTestRoutes = require("./routes/dbTestRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const leaveRoutes = require("./routes/leaveRoutes");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use("/", testRoutes);
 app.use("/", dbTestRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/leaves", leaveRoutes);
 
 const PORT = process.env.PORT || 5000;
 
