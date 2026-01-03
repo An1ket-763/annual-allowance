@@ -4,7 +4,7 @@ import Login from "./pages/Login";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import LeaveForm from "./components/LeaveForm";
-import ChangePassword from "./pages/ChangePassword";
+import ChangePassword from "./components/ChangePassword";
 
 const getRole = (): string | null => {
   try {

@@ -65,6 +65,12 @@ exports.changePassword = async (req, res) => {
         const user = req.user;
         const { newPassword } = req.body;
 
+        if (!user.mustChangePassword) {
+            return res.status(403).json({
+                message: "Password already changed"
+            });
+        }
+
         if (!newPassword || newPassword.length < 6) {
             return res.status(400).json({ message: "Password too short" });
         }
