@@ -12,6 +12,8 @@ const getUserFromToken = () => {
     }
 };
 
+const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString();
 
 export default function EmployeeDashboard() {
     const navigate = useNavigate();
@@ -209,17 +211,30 @@ export default function EmployeeDashboard() {
                             <p className="text-slate-600 mt-1">Request time off or view your leave history</p>
                         </div>
 
-                        <div>
+                        <div className="flex flex-col items-end gap-2">
                             <button
                                 onClick={() => navigate('/request-leave')}
-                                className="inline-flex items-center gap-3 px-4 py-2 rounded-md bg-gradient-to-r from-emerald-600 to-sky-500 text-white shadow hover:opacity-95"
+                                disabled={leaveData.remaining <= 0}
+                                className="inline-flex items-center gap-3 px-4 py-2 rounded-md 
+                                        bg-gradient-to-r from-emerald-600 to-sky-500 text-white shadow 
+                                        hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 5v14M5 12h14" stroke="currentColor"
+                                        strokeWidth="1.5" strokeLinecap="round"
+                                        strokeLinejoin="round" />
                                 </svg>
                                 Request Leave
                             </button>
+
+                            {leaveData.remaining <= 0 && (
+                                <span className="text-sm text-red-600">
+                                    You have exhausted your leave balance.
+                                </span>
+                            )}
                         </div>
+
                     </div>
                 </section>
 
@@ -240,8 +255,8 @@ export default function EmployeeDashboard() {
                                 <tbody>
                                     {requests.map((r) => (
                                         <tr key={r.id} className="border-t">
-                                            <td className="p-3">{r.start_date}</td>
-                                            <td className="p-3">{r.end_date}</td>
+                                            <td className="p-3">{formatDate(r.start_date)}</td>
+                                            <td className="p-3">{formatDate(r.end_date)}</td>
                                             <td className="p-3">{r.days}</td>
                                             <td className={`p-3 font-medium ${r.status === 'APPROVED' ? 'text-emerald-600' : r.status === 'DECLINED' ? 'text-red-500' : 'text-yellow-600'}`}>
                                                 {r.status}

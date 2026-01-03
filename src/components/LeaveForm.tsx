@@ -51,7 +51,6 @@ export default function LeaveForm() {
                 body: JSON.stringify({
                     startDate: formData.startDate,
                     endDate: formData.endDate,
-                    days,
                 }),
             });
 
@@ -107,7 +106,7 @@ export default function LeaveForm() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || calcDaysInclusive(formData.startDate, formData.endDate) <= 0}
                         className="w-full py-2 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-70 mt-4"
                     >
                         {loading ? "Submitting..." : "Submit Request"}
